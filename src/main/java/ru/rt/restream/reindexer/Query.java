@@ -1074,8 +1074,7 @@ public class Query<T> {
 
         return namespaces.stream()
                 .map(ReindexerNamespace::getPayloadType)
-                .map(pt -> pt == null ? 0 : pt.getStateToken())
-                .mapToLong(Integer::longValue)
+                .mapToLong(pt -> pt == null ? 0 : (pt.getVersion() ^ pt.getStateToken()))
                 .toArray();
     }
 
@@ -1245,7 +1244,11 @@ public class Query<T> {
         if (transactionContext != null) {
             transactionContext.updateQuery(buffer.bytes());
         } else {
-            reindexer.getBinding().updateQuery(buffer.bytes());
+            // There are no support for inner joins for update-queries in Java binding,
+            // so we are using single pt version
+            PayloadType pt = namespace.getPayloadType();
+            long tmVersion = pt == null ? 0 : (pt.getVersion() ^ pt.getStateToken());
+            reindexer.getBinding().updateQuery(buffer.bytes(), new long[]{tmVersion});
         }
     }
 

@@ -39,6 +39,17 @@ public final class FieldExpression implements WhereExpression {
         this.fieldName = Objects.requireNonNull(fieldName, "fieldName cannot be null");
     }
 
+    /**
+     * Applies a {@link PreceptFunction} to the field.
+     *
+     * @param expression the {@link PreceptFunction} to apply
+     * @return the {@link PreceptExpression} to use
+     */
+    public PreceptExpression apply(PreceptFunction expression) {
+        Objects.requireNonNull(expression, "expression cannot be null");
+        return new StringExpression(fieldName + '=' + expression);
+    }
+
     @Override
     public void serializeWhere(ByteBuffer buffer) {
         buffer.putVarUInt32(EXPRESSION_TYPE);

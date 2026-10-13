@@ -21,6 +21,7 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import ru.rt.restream.reindexer.binding.definition.IndexConfig;
 import ru.rt.restream.reindexer.fulltext.FullTextConfig;
@@ -88,7 +89,7 @@ public class ReindexerIndex {
      * Precept is a special reindexer embedded function, such as serial(), now().
      * {@link ru.rt.restream.reindexer.annotations.Serial}
      */
-    private String precept;
+    private Precept precept;
 
     private boolean isArray;
 
@@ -154,5 +155,19 @@ public class ReindexerIndex {
             default:
                 return null;
         }
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    public static final class Precept {
+
+        private final String fieldName;
+
+        private final String jsonPath;
+
+        private final String expression;
+
+        private final boolean isPrimaryKey;
+
     }
 }

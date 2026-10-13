@@ -133,8 +133,9 @@ public interface Binding {
      * @param mode          modify mode (UPDATE, INSERT, UPSERT, DELETE)
      * @param precepts      precepts (i.e. "id=serial()", "updated_at=now()")
      * @param stateToken    state token
+     * @return the {@link QueryResult} to use
      */
-    void modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts, int stateToken);
+    QueryResult modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts, int stateToken);
 
     /**
      * Drop a namespace by name.

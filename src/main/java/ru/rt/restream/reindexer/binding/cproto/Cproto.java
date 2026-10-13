@@ -21,6 +21,7 @@ import com.google.gson.GsonBuilder;
 import ru.rt.restream.reindexer.ReindexerResponse;
 import ru.rt.restream.reindexer.binding.Binding;
 import ru.rt.restream.reindexer.binding.Consts;
+import ru.rt.restream.reindexer.binding.QueryResult;
 import ru.rt.restream.reindexer.binding.RequestContext;
 import ru.rt.restream.reindexer.binding.TransactionContext;
 import ru.rt.restream.reindexer.binding.cproto.util.ConnectionUtils;
@@ -99,11 +100,14 @@ public class Cproto implements Binding {
      * {@inheritDoc}
      */
     @Override
-    public void modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts,
-                           int stateToken) {
+    public QueryResult modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts,
+                                  int stateToken) {
         byte[] packedPercepts = packPrecepts(precepts);
-        rpcCallNoResults(MODIFY_ITEM, namespaceName, format, data, mode,
+        Connection connection = pool.getConnection();
+        ReindexerResponse rpcResponse = ConnectionUtils.rpcCall(connection, MODIFY_ITEM, namespaceName, format, data, mode,
                 packedPercepts, stateToken, 0);
+        CprotoRequestContext context = new CprotoRequestContext(rpcResponse, connection, false, connection.queryFormatVersion());
+        return context.getQueryResult();
     }
 
     private byte[] packPrecepts(String[] precepts) {

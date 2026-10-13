@@ -141,12 +141,12 @@ public class ReindexAnnotationScanner implements ReindexScanner {
                 String collate = reindex.collate();
                 CollateMode collateMode = getCollateMode(collate);
                 String sortOrder = getSortOrder(collateMode, collate);
-                String precept = null;
+                ReindexerIndex.Precept precept = null;
                 if (field.isAnnotationPresent(Serial.class)) {
                     if (!fieldInfo.isInt()) {
                         throw new IllegalStateException("@Serial is allowed only for int types (i.e INT, INT64)");
                     }
-                    precept = field.getName() + "=serial()";
+                    precept = new ReindexerIndex.Precept(field.getName(), jsonPath, field.getName() + "=serial()", reindex.isPrimaryKey());
                 }
                 FullTextConfig fullTextConfig = getFullTextConfig(field, reindex.type());
                 validateUuidIndexHasTypeUuidOrString(reindex, fieldInfo);
@@ -317,7 +317,7 @@ public class ReindexAnnotationScanner implements ReindexScanner {
 
     private ReindexerIndex createIndex(String reindexPath, List<String> jsonPath, IndexType indexType,
                                        FieldType fieldType, boolean isDense, boolean isSparse, boolean isPk,
-                                       boolean isArray, CollateMode collateMode, String sortOrder, String precept,
+                                       boolean isArray, CollateMode collateMode, String sortOrder, ReindexerIndex.Precept precept,
                                        FullTextConfig textConfig, boolean isUuid, boolean isAppendable,
                                        boolean isNoColumn, HnswConfig hnswConfig, IvfConfig ivfConfig, VecBfConfig vecBfConfig) {
         ReindexerIndex index = new ReindexerIndex();

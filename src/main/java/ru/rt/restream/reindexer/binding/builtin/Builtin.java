@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.rt.restream.reindexer.ReindexerResponse;
 import ru.rt.restream.reindexer.binding.Binding;
+import ru.rt.restream.reindexer.binding.QueryResult;
 import ru.rt.restream.reindexer.binding.RequestContext;
 import ru.rt.restream.reindexer.binding.TransactionContext;
 import ru.rt.restream.reindexer.binding.cproto.ByteBuffer;
@@ -121,7 +122,7 @@ public class Builtin implements Binding {
     }
 
     @Override
-    public void modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts, int stateToken) {
+    public QueryResult modifyItem(String namespaceName, byte[] data, int format, int mode, String[] precepts, int stateToken) {
         ByteBuffer args = new ByteBuffer()
                 .putVString(namespaceName)
                 .putVarUInt32(format)
@@ -133,6 +134,8 @@ public class Builtin implements Binding {
         }
         ReindexerResponse response = adapter.modifyItem(rx, next.getAndIncrement(), timeout.toMillis(), args.bytes(), data);
         checkResponse(response);
+        BuiltinRequestContext context = new BuiltinRequestContext(response);
+        return context.getQueryResult();
     }
 
     @Override

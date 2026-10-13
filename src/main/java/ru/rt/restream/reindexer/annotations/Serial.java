@@ -21,9 +21,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Sequence of integer, useful for uniq ID generation.
- * This always updates the index value, so use a separate DTO for the update
- * if the index is used as the primary key.
+ * Sequence of integer, useful for unique ID generation.
+ * When used on primary-key index, the generation is applied only for items with absent id field.
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

@@ -339,7 +339,7 @@ public class Transaction<T> {
 
     private <E> CompletableFuture<E> modifyItemAsyncInternal(E item, int mode, int format, int retryCount) {
         LOGGER.debug("rx: transaction modifyItemAsync, params=[{}, {}], retryCount={}", item, mode, retryCount);
-        String[] precepts = namespace.getPrecepts();
+        String[] precepts = namespace.getPrecepts(item, format);
         PayloadType payloadType = namespace.getPayloadType();
         int stateToken = payloadType == null ? 0 : payloadType.getStateToken();
         ItemSerializer<E> serializer = ItemSerializer.getInstance(item.getClass(), payloadType);
@@ -370,7 +370,7 @@ public class Transaction<T> {
 
     private <E> void modifyItem(E item, int mode, int format) {
         LOGGER.debug("rx: transaction modifyItem, params=[{}, {}]", item, mode);
-        String[] precepts = namespace.getPrecepts();
+        String[] precepts = namespace.getPrecepts(item, format);
         for (int i = 0; i < 2; i++) {
             try {
                 PayloadType payloadType = namespace.getPayloadType();

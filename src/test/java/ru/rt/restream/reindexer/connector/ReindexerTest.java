@@ -78,6 +78,7 @@ import static org.hamcrest.Matchers.in;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -138,7 +139,7 @@ public abstract class ReindexerTest extends DbBaseTest {
     @Test
     public void testInsertJsonItem() {
         String namespaceName = "items";
-        db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
+        Namespace<TestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
 
         TestItem testItem = new TestItem();
         testItem.setId(123);
@@ -147,9 +148,10 @@ public abstract class ReindexerTest extends DbBaseTest {
 
         String jsonItem = JsonSerializer.toJson(testItem);
 
-        db.insert(namespaceName, jsonItem);
+        Optional<TestItem> inserted = ns.insert(jsonItem);
+        assertThat(inserted.isPresent(), is(false));
 
-        Iterator<TestItem> iterator = db.query(namespaceName, TestItem.class)
+        Iterator<TestItem> iterator = ns.query()
                 .where("id", EQ, 123)
                 .execute();
 
@@ -191,21 +193,22 @@ public abstract class ReindexerTest extends DbBaseTest {
     @Test
     public void testUpdateJsonItem() {
         String namespaceName = "items";
-        db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
+        Namespace<TestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
 
         TestItem testItem = new TestItem();
         testItem.setId(123);
         testItem.setName("TestName");
         testItem.setNonIndex("testNonIndex");
 
-        db.insert(namespaceName, testItem);
+        ns.insert(testItem);
 
         testItem.setName("TestNameUpdated");
         String jsonItem = JsonSerializer.toJson(testItem);
 
-        db.update(namespaceName, jsonItem);
+        Optional<TestItem> updated = ns.update(jsonItem);
+        assertThat(updated.isPresent(), is(false));
 
-        Iterator<TestItem> iterator = db.query(namespaceName, TestItem.class)
+        Iterator<TestItem> iterator = ns.query()
                 .where("id", EQ, 123)
                 .execute();
         assertThat(iterator.hasNext(), is(true));
@@ -240,7 +243,7 @@ public abstract class ReindexerTest extends DbBaseTest {
     @Test
     public void testUpsertJsonItem() {
         String namespaceName = "items";
-        db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
+        Namespace<TestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), TestItem.class);
 
         TestItem testItem = new TestItem();
         testItem.setId(123);
@@ -249,9 +252,10 @@ public abstract class ReindexerTest extends DbBaseTest {
 
         String jsonItem = JsonSerializer.toJson(testItem);
 
-        db.upsert(namespaceName, jsonItem);
+        Optional<TestItem> upserted = ns.upsert(jsonItem);
+        assertThat(upserted.isPresent(), is(false));
 
-        Iterator<TestItem> iterator = db.query(namespaceName, TestItem.class)
+        Iterator<TestItem> iterator = ns.query()
                 .where("id", EQ, 123)
                 .execute();
         assertThat(iterator.hasNext(), is(true));
@@ -1817,6 +1821,82 @@ public abstract class ReindexerTest extends DbBaseTest {
     }
 
     @Test
+    public void testInsertWithSerialIdReturnsGeneratedId() {
+        String namespaceName = "items";
+        Namespace<SerialIdTestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), SerialIdTestItem.class);
+
+        int currentVersion = 0;
+        for (int i = 0; i < 3; i++) {
+            SerialIdTestItem inserted = ns.insert(new SerialIdTestItem());
+            assertThat(inserted, notNullValue());
+            assertThat(inserted.id, is(i + 1));
+            assertThat(inserted.version, is(++currentVersion));
+            SerialIdTestItem updated = ns.update(inserted);
+            assertThat(updated, sameInstance(inserted));
+            assertThat(inserted.id, is(i + 1));
+            assertThat(inserted.version, is(++currentVersion));
+        }
+    }
+
+    @Test
+    public void testInsertJsonWithSerialIdReturnsGeneratedId() {
+        String namespaceName = "items";
+        Namespace<SerialIdTestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), SerialIdTestItem.class);
+
+        int currentVersion = 0;
+        for (int i = 0; i < 3; i++) {
+            SerialIdTestItem inserted = ns.insert(JsonSerializer.toJson(new SerialIdTestItem()))
+                    .orElse(null);
+            assertThat(inserted, notNullValue());
+            assertThat(inserted.id, is(i + 1));
+            assertThat(inserted.version, is(++currentVersion));
+            SerialIdTestItem updated = ns.update(JsonSerializer.toJson(inserted))
+                    .orElse(null);
+            assertThat(updated, notNullValue());
+            assertThat(updated.id, is(i + 1));
+            assertThat(updated.version, is(++currentVersion));
+        }
+    }
+
+    @Test
+    public void testUpsertWithSerialIdReturnsGeneratedId() {
+        String namespaceName = "items";
+        Namespace<SerialIdTestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), SerialIdTestItem.class);
+
+        int currentVersion = 0;
+        for (int i = 0; i < 3; i++) {
+            SerialIdTestItem upserted1 = ns.upsert(new SerialIdTestItem());
+            assertThat(upserted1, notNullValue());
+            assertThat(upserted1.id, is(i + 1));
+            assertThat(upserted1.version, is(++currentVersion));
+            SerialIdTestItem upserted2 = ns.upsert(upserted1);
+            assertThat(upserted2, sameInstance(upserted1));
+            assertThat(upserted2.id, is(i + 1));
+            assertThat(upserted2.version, is(++currentVersion));
+        }
+    }
+
+    @Test
+    public void testUpsertJsonWithSerialIdReturnsGeneratedId() {
+        String namespaceName = "items";
+        Namespace<SerialIdTestItem> ns = db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), SerialIdTestItem.class);
+
+        int currentVersion = 0;
+        for (int i = 0; i < 3; i++) {
+            SerialIdTestItem upserted1 = ns.upsert(JsonSerializer.toJson(new SerialIdTestItem()))
+                    .orElse(null);
+            assertThat(upserted1, notNullValue());
+            assertThat(upserted1.id, is(i + 1));
+            assertThat(upserted1.version, is(++currentVersion));
+            SerialIdTestItem upserted2 = ns.upsert(JsonSerializer.toJson(upserted1))
+                    .orElse(null);
+            assertThat(upserted2, notNullValue());
+            assertThat(upserted2.id, is(i + 1));
+            assertThat(upserted2.version, is(++currentVersion));
+        }
+    }
+
+    @Test
     public void testTransactionUpsertWithSerialId() {
         String namespaceName = "items";
         db.openNamespace(namespaceName, NamespaceOptions.defaultOptions(), SerialIdTestItem.class);
@@ -3116,7 +3196,10 @@ public abstract class ReindexerTest extends DbBaseTest {
     public static class SerialIdTestItem {
         @Serial
         @Reindex(name = "id", isPrimaryKey = true)
-        private int id;
+        private Integer id;
+        @Serial
+        @Reindex(name = "version")
+        private Integer version;
     }
 
     @Getter

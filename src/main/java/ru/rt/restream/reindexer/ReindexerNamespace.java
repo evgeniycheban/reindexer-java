@@ -15,12 +15,21 @@
  */
 package ru.rt.restream.reindexer;
 
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import lombok.AccessLevel;
 import lombok.Getter;
+import ru.rt.restream.reindexer.binding.Consts;
 import ru.rt.restream.reindexer.binding.cproto.cjson.PayloadType;
+import ru.rt.restream.reindexer.util.BeanPropertyUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 /**
  * Contains the reindexer namespace configuration and methods for manipulating the linked reindexer namespace data.
@@ -81,7 +90,7 @@ public class ReindexerNamespace<T> implements Namespace<T> {
      *
      * <p>Precept is a special reindexer embedded function, such as serial(), now().
      */
-    private final String[] precepts;
+    private final ReindexerIndex.Precept[] precepts;
 
     /**
      * Current namespace payload type.
@@ -114,7 +123,7 @@ public class ReindexerNamespace<T> implements Namespace<T> {
         this.precepts = indexes.stream()
                 .map(ReindexerIndex::getPrecept)
                 .filter(Objects::nonNull)
-                .toArray(String[]::new);
+                .toArray(ReindexerIndex.Precept[]::new);
         this.reindexer = builder.reindexer;
     }
 
@@ -137,33 +146,33 @@ public class ReindexerNamespace<T> implements Namespace<T> {
     }
 
     @Override
-    public void insert(T item) {
-        reindexer.insert(name, item);
+    public T insert(T item) {
+        return reindexer.insert(name, item);
     }
 
     @Override
-    public void insert(String item) {
-        reindexer.insert(name, item);
+    public Optional<T> insert(String item) {
+        return reindexer.insert(name, item);
     }
 
     @Override
-    public void upsert(T item) {
-        reindexer.upsert(name, item);
+    public T upsert(T item) {
+        return reindexer.upsert(name, item);
     }
 
     @Override
-    public void upsert(String item) {
-        reindexer.upsert(name, item);
+    public Optional<T> upsert(String item) {
+        return reindexer.upsert(name, item);
     }
 
     @Override
-    public void update(T item) {
-        reindexer.update(name, item);
+    public T update(T item) {
+        return reindexer.update(name, item);
     }
 
     @Override
-    public void update(String item) {
-        reindexer.update(name, item);
+    public Optional<T> update(String item) {
+        return reindexer.update(name, item);
     }
 
     @Override
@@ -199,6 +208,28 @@ public class ReindexerNamespace<T> implements Namespace<T> {
     @Override
     public void updateSql(String query) {
         reindexer.updateSql(query);
+    }
+
+    String[] getPrecepts(Object item, int format) {
+        Predicate<ReindexerIndex.Precept> isNewPredicate;
+        if (format == Consts.FORMAT_JSON) {
+            Configuration configuration = Configuration.defaultConfiguration()
+                    .addOptions(Option.DEFAULT_PATH_LEAF_TO_NULL);
+            DocumentContext document = JsonPath.using(configuration).parse((String) item);
+            // Lookup for id field using json-path e.g., "$.id".
+            isNewPredicate = it -> document.read("$." + it.getJsonPath()) == null;
+        } else {
+            // Lookup for id field using id field name.
+            isNewPredicate = it -> BeanPropertyUtils.getProperty(item, it.getFieldName()) == null;
+        }
+        List<String> precepts = new ArrayList<>();
+        for (ReindexerIndex.Precept precept : this.precepts) {
+            // Apply precept for primary-key index e.g., "id=serial()" only when id is absent.
+            if (!precept.isPrimaryKey() || isNewPredicate.test(precept)) {
+                precepts.add(precept.getExpression());
+            }
+        }
+        return precepts.toArray(new String[0]);
     }
 
     /**
